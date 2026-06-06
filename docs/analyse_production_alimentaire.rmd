@@ -1,0 +1,489 @@
+---
+title: "Analyse de la Production Industrielle Alimentaire (C11)"
+author: "Analyse Économétrique"
+date: "`r format(Sys.Date(), '%d %B %Y')`"
+output:
+  html_document:
+    toc: true
+    toc_float: true
+    toc_depth: 3
+    theme: flatly
+    highlight: tango
+    number_sections: true
+    df_print: paged
+    code_folding: show
+  pdf_document:
+    toc: true
+    toc_depth: 3
+    number_sections: true
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(
+  echo       = TRUE,
+  warning    = FALSE,
+  message    = FALSE,
+  fig.width  = 10,
+  fig.height = 6,
+  fig.align  = "center"
+)
+```
+
+---
+
+# Chargement des bibliothèques et des données {#bloc1}
+
+```{r bibliotheques}
+# Chargement des bibliothèques nécessaires
+# Si une erreur survient, installe le package manquant : install.packages("nom")
+library(readxl)      # Lecture du fichier Excel
+library(forecast)    # Outils de séries temporelles
+library(ggplot2)     # Graphiques
+library(ggfortify)   # Support autoplot pour les objets ts
+library(zoo)         # Calculs glissants (rolling)
+library(tsoutliers)  # Méthode Additive Outliers (AO)
+library(tseries)     # Tests statistiques (ADF)
+library(gridExtra)   # Mise en page multi-graphiques
+library(lubridate)   # Manipulation des dates
+```
+
+```{r chargement-donnees}
+# Importation du fichier Excel
+# Le fichier doit se trouver dans le même dossier que ce .Rmd
+file_path <- "Industrial Production food  S C11.xlsx"
+
+if (file.exists(file_path)) {
+
+  df <- read_excel(file_path, col_names = FALSE)
+
+  # Conversion forcée en numérique (colonne 2)
+  valeurs_numeriques <- as.numeric(df[[2]])
+
+  # Création de l'objet Time Series
+  # Début : Janvier 1982 | Fréquence : 12 (mensuel)
+  serie_ts <- ts(valeurs_numeriques, start = c(1982, 1), frequency = 12)
+
+  cat("Données chargées avec succès.\n")
+  cat("Nombre d'observations :", length(serie_ts), "\n")
+
+} else {
+  stop("ERREUR : Le fichier Excel est introuvable dans le dossier actuel.")
+}
+
+# Aperçu des premières valeurs
+head(serie_ts)
+```
+
+---
+
+# Visualisation et zoom {#bloc2}
+
+```{r visualisation}
+# --- Graphique 1 : Série complète ---
+p_original <- autoplot(serie_ts, color = "black") +
+  ggtitle("1. Série Complète — Production Alimentaire") +
+  xlab("Années") + ylab("Indice") +
+  theme_minimal()
+
+# --- Graphique 2 : Zoom sur 4 ans (section centrale) ---
+n_obs    <- length(serie_ts)
+milieu   <- floor(n_obs / 2)
+serie_zoom <- window(serie_ts,
+                     start = time(serie_ts)[milieu - 24],
+                     end   = time(serie_ts)[milieu + 24])
+
+df_zoom <- data.frame(
+  Date   = as.numeric(time(serie_zoom)),
+  Valeur = as.numeric(serie_zoom)
+)
+
+p_zoom <- ggplot(df_zoom, aes(x = Date, y = Valeur)) +
+  geom_line(color = "blue", linewidth = 0.8) +
+  geom_point(color = "blue", size = 1.5) +
+  ggtitle("2. Zoom : 4 ans (Section centrale)") +
+  xlab("Temps") + ylab("Valeur") +
+  theme_minimal()
+
+grid.arrange(p_original, p_zoom, nrow = 2)
+```
+
+> **Lecture :** Observer la régularité des pics sur le zoom pour évaluer la saisonnalité.
+
+---
+
+# Analyse de la variance (volatilité) {#bloc3}
+
+```{r variance}
+# Écart-type glissant sur 12 mois
+vol_continue <- rollapply(serie_ts, width = 12,
+                          FUN = function(x) sd(x, na.rm = TRUE),
+                          fill = NA, align = "right")
+
+df_vol      <- data.frame(Date = as.numeric(time(vol_continue)),
+                           SD   = as.numeric(vol_continue))
+df_vol      <- df_vol[!is.na(df_vol$SD), ]
+moyenne_vol <- mean(df_vol$SD)
+
+ggplot(df_vol, aes(x = Date, y = SD)) +
+  geom_line(color = "blue", linewidth = 1) +
+  geom_hline(yintercept = moyenne_vol,
+             linetype = "dashed", color = "red", linewidth = 0.8) +
+  geom_smooth(method = "lm", color = "black",
+              linetype = "dotted", se = FALSE) +
+  annotate("text", x = min(df_vol$Date), y = moyenne_vol,
+           label = "Niveau Moyen", vjust = -1, hjust = 0) +
+  ggtitle("3. Analyse de la Variance — Écart-type mobile 12 mois") +
+  xlab("Années") + ylab("Écart-type (Volatilité)") +
+  theme_minimal()
+```
+
+```{r test-correlation, results='asis'}
+# Test de corrélation Niveau ~ Variance (décision log)
+moy_continue <- rollapply(serie_ts, width = 12, FUN = mean, fill = NA, align = "right")
+val_moy <- as.numeric(moy_continue[!is.na(moy_continue)])
+val_vol <- as.numeric(vol_continue[!is.na(vol_continue)])
+test_corr <- cor(val_moy, val_vol)
+
+cat("**Corrélation Niveau / Variance :** ", round(test_corr, 4), "\n\n")
+if (abs(test_corr) > 0.5) {
+  cat("> ⚠️ Corrélation forte → la variance augmente avec le niveau.",
+      "Une **transformation logarithmique** est recommandée.\n")
+} else {
+  cat("> ✅ Corrélation faible → la variance est déjà relativement stable.\n")
+}
+```
+
+---
+
+# Transformation logarithmique {#bloc4}
+
+```{r transformation-log}
+# Application du logarithme
+serie_log <- log(serie_ts)
+
+p_log <- autoplot(serie_log, color = "darkgreen") +
+  ggtitle("4. Série après Transformation Logarithmique",
+          subtitle = "La variance est désormais stabilisée (échelle log)") +
+  xlab("Années") + ylab("Log(Indice)") +
+  theme_minimal()
+
+grid.arrange(
+  p_original + ggtitle("Série Originale — variance instable"),
+  p_log      + ggtitle("Série Log — variance stabilisée"),
+  nrow = 2
+)
+
+# Mise à jour de la variable de travail
+serie_travail <- serie_log
+```
+
+---
+
+# Détection et correction des Additive Outliers (AO) {#bloc5}
+
+```{r outliers, cache=TRUE}
+cat("Recherche des chocs brutaux (Additive Outliers)...\n")
+
+detect_ao  <- tso(serie_log,
+                  types        = c("AO"),
+                  maxit.iloop  = 10,
+                  tsmethod     = "auto.arima")
+
+cat("\n--- OUTLIERS DÉTECTÉS ---\n")
+print(detect_ao$outliers)
+
+# Série nettoyée (yadj = series adjusted)
+serie_clean <- detect_ao$yadj
+```
+
+```{r visualisation-ao}
+df_clean <- data.frame(
+  Date      = as.numeric(time(serie_log)),
+  Brute     = as.numeric(serie_log),
+  Nettoyee  = as.numeric(serie_clean)
+)
+
+ggplot(df_clean, aes(x = Date)) +
+  geom_line(aes(y = Brute,    color = "Log Original (avec choc)"),
+            alpha = 0.4, linewidth = 0.7) +
+  geom_line(aes(y = Nettoyee, color = "Log Nettoyé (AO corrigés)"),
+            linewidth = 0.8) +
+  scale_color_manual(values = c(
+    "Log Original (avec choc)"   = "red",
+    "Log Nettoyé (AO corrigés)" = "black"
+  )) +
+  ggtitle("5. Correction par la méthode Additive Outliers (AO)",
+          subtitle = "La ligne noire montre la série débarrassée des chutes brutales") +
+  theme_minimal() +
+  theme(legend.position = "bottom")
+
+# Mise à jour de la variable de travail
+serie_travail <- serie_clean
+```
+
+---
+
+# Stationnarité et identification (ADF + ACF/PACF) {#bloc6}
+
+## Test de Dickey-Fuller Augmenté
+
+```{r adf-brut, results='asis'}
+test_adf <- adf.test(serie_travail)
+
+cat("**p-value :**", round(test_adf$p.value, 4), "\n\n")
+
+if (test_adf$p.value > 0.05) {
+  cat("> ❌ La série est **NON-STATIONNAIRE** (p > 0.05). Une différenciation est requise.\n")
+} else {
+  cat("> ✅ La série est **STATIONNAIRE** (p ≤ 0.05).\n")
+}
+```
+
+## Nombre de différenciations requises
+
+```{r ndiffs}
+d_requis <- ndiffs(serie_travail)
+D_requis <- nsdiffs(serie_travail)
+
+cat("Différenciation simple   (d) :", d_requis, "\n")
+cat("Différenciation saisonnière (D) :", D_requis, "\n")
+```
+
+## Série stationnarisée
+
+```{r serie-stationnaire}
+serie_stat <- serie_travail
+if (D_requis > 0) serie_stat <- diff(serie_stat, lag = 12, differences = D_requis)
+if (d_requis > 0) serie_stat <- diff(serie_stat, differences = d_requis)
+
+autoplot(serie_stat, color = "#8e44ad") +
+  geom_hline(yintercept = 0, color = "red", linetype = "dashed", linewidth = 0.8) +
+  ggtitle("6.5 Série Stationnarisée (d=1, D=1)",
+          subtitle = "La tendance et la saisonnalité ont été retirées") +
+  xlab("Années") + ylab("Valeur Différenciée") +
+  theme_minimal()
+```
+
+```{r adf-stat, results='asis'}
+test_adf2 <- adf.test(serie_stat)
+
+cat("**p-value après différenciation :**", round(test_adf2$p.value, 4), "\n\n")
+
+if (test_adf2$p.value > 0.05) {
+  cat("> ❌ Toujours NON-STATIONNAIRE — différenciation supplémentaire nécessaire.\n")
+} else {
+  cat("> ✅ La série est maintenant **STATIONNAIRE**.\n")
+}
+```
+
+## ACF / PACF — identification des ordres SARIMA
+
+```{r acf-pacf, fig.height=7}
+par(mfrow = c(2, 1))
+Acf(serie_stat,  lag.max = 36, main = "ACF  — Identification des moyennes mobiles (q, Q)")
+Pacf(serie_stat, lag.max = 36, main = "PACF — Identification des autorégressions (p, P)")
+par(mfrow = c(1, 1))
+```
+
+---
+
+# Division Train / Test {#bloc7}
+
+```{r split-donnees}
+# On se concentre sur la période depuis 2010
+serie_recent      <- window(serie_travail, start = c(2010, 1))
+h_test            <- 24
+n_total_recent    <- length(serie_recent)
+date_coupure      <- time(serie_recent)[n_total_recent - h_test]
+
+train_set <- window(serie_recent, end   = date_coupure)
+test_set  <- window(serie_recent, start = time(serie_recent)[n_total_recent - h_test + 1])
+
+df_split_recent <- data.frame(
+  Date   = c(as.numeric(time(train_set)), as.numeric(time(test_set))),
+  Valeur = c(as.numeric(train_set),       as.numeric(test_set)),
+  Type   = c(rep("1. Apprentissage (Train : 2010–2022)", length(train_set)),
+             rep("2. Réalité Cachée (Test : 2 derniers ans)",  length(test_set)))
+)
+
+ggplot(df_split_recent, aes(x = Date, y = Valeur, color = Type)) +
+  geom_line(linewidth = 0.9) +
+  scale_color_manual(values = c(
+    "1. Apprentissage (Train : 2010–2022)"     = "black",
+    "2. Réalité Cachée (Test : 2 derniers ans)" = "red"
+  )) +
+  ggtitle("7. Division des données (Focus depuis 2010)",
+          subtitle = "Les données antérieures à 2010 ont été exclues") +
+  theme_minimal() +
+  theme(legend.position = "bottom")
+
+cat("Taille Train :", length(train_set), "mois\n")
+cat("Taille Test  :", length(test_set),  "mois (2 ans)\n")
+```
+
+---
+
+# Modélisation SARIMA et validation {#bloc8}
+
+## Sélection automatique du modèle
+
+```{r auto-arima, cache=TRUE}
+fit_model <- auto.arima(train_set,
+                        seasonal      = TRUE,
+                        stepwise      = FALSE,
+                        approximation = FALSE)
+
+cat("--- MODÈLE SÉLECTIONNÉ ---\n")
+print(fit_model)
+```
+
+## Validation sur le Test Set
+
+```{r validation}
+forecast_test <- forecast(fit_model, h = h_test)
+
+# Retour à l'échelle originale (inversion du log)
+reel_test <- exp(as.numeric(test_set))
+pred_test <- exp(as.numeric(forecast_test$mean))
+lim_inf   <- exp(as.numeric(forecast_test$lower[, 2]))
+lim_sup   <- exp(as.numeric(forecast_test$upper[, 2]))
+
+# Calcul du MAPE
+mape_score <- mean(abs(reel_test - pred_test) / reel_test) * 100
+
+df_valid <- data.frame(
+  Date    = as.numeric(time(test_set)),
+  Reel    = reel_test,
+  Pred    = pred_test,
+  Inf_95  = lim_inf,
+  Sup_95  = lim_sup
+)
+
+ggplot(df_valid, aes(x = Date)) +
+  geom_ribbon(aes(ymin = Inf_95, ymax = Sup_95),
+              fill = "blue", alpha = 0.1) +
+  geom_line(aes(y = Reel, color = "Réalité (Test Set)"),
+            linewidth = 1) +
+  geom_line(aes(y = Pred, color = "Prévision du Modèle"),
+            linetype = "dashed", linewidth = 1) +
+  scale_color_manual(values = c(
+    "Réalité (Test Set)"    = "black",
+    "Prévision du Modèle"  = "red"
+  )) +
+  ggtitle("8. Validation : Réalité vs Prédiction (24 mois)",
+          subtitle = paste("Erreur moyenne (MAPE) :", round(mape_score, 2), "%")) +
+  theme_minimal() +
+  theme(legend.position = "bottom")
+
+cat("Performance MAPE :", round(mape_score, 2), "%\n")
+```
+
+> **Interprétation :** MAPE < 5 % → excellent | MAPE < 10 % → très bon
+
+## Validation globale (historique + test + prévision)
+
+```{r validation-globale}
+df_hist_full <- data.frame(
+  Date   = as.numeric(time(train_set)),
+  Valeur = exp(as.numeric(train_set)),
+  Type   = "1. Historique (Apprentissage)"
+)
+df_test_full <- data.frame(
+  Date   = as.numeric(time(test_set)),
+  Valeur = exp(as.numeric(test_set)),
+  Type   = "2. Réalité (Test Set)"
+)
+df_pred_full <- data.frame(
+  Date   = as.numeric(time(test_set)),
+  Valeur = exp(as.numeric(forecast_test$mean)),
+  Type   = "3. Prévision du Modèle"
+)
+
+ggplot() +
+  geom_ribbon(data = df_valid,
+              aes(x = Date, ymin = Inf_95, ymax = Sup_95),
+              fill = "red", alpha = 0.1) +
+  geom_line(data = df_hist_full,
+            aes(x = Date, y = Valeur, color = Type), linewidth = 0.7) +
+  geom_line(data = df_test_full,
+            aes(x = Date, y = Valeur, color = Type), linewidth = 0.8) +
+  geom_line(data = df_pred_full,
+            aes(x = Date, y = Valeur, color = Type),
+            linetype = "dashed", linewidth = 0.8) +
+  scale_color_manual(values = c(
+    "1. Historique (Apprentissage)" = "black",
+    "2. Réalité (Test Set)"         = "blue",
+    "3. Prévision du Modèle"        = "red"
+  )) +
+  ggtitle("8.5 Validation Globale du Modèle",
+          subtitle = paste("Comparaison sur toute la période | MAPE :",
+                           round(mape_score, 2), "%")) +
+  xlab("Années") + ylab("Valeur Originale") +
+  theme_minimal() +
+  theme(legend.position = "bottom", legend.title = element_blank())
+```
+
+---
+
+# Prévisions finales (2010 – 2026) {#bloc9}
+
+```{r prevision-finale, cache=TRUE}
+# Entraînement sur toute la période 2010–fin
+serie_final_recent <- window(serie_clean, start = c(2010, 1))
+final_fit          <- Arima(serie_final_recent, model = fit_model)
+
+horizon_futur  <- 24
+forecast_final <- forecast(final_fit, h = horizon_futur)
+
+# Retour à l'échelle originale
+forecast_final$mean  <- exp(forecast_final$mean)
+forecast_final$lower <- exp(forecast_final$lower)
+forecast_final$upper <- exp(forecast_final$upper)
+forecast_final$x     <- exp(forecast_final$x)
+
+autoplot(forecast_final) +
+  ggtitle("9. Prévisions Officielles — Base de données : 2010–2024",
+          subtitle = paste("Modèle SARIMA :", as.character(fit_model))) +
+  xlab("Années") + ylab("Valeur Originale") +
+  theme_minimal() +
+  theme(
+    plot.title  = element_text(face = "bold", color = "darkblue", size = 14),
+    axis.title  = element_text(face = "bold")
+  )
+```
+
+## Tableau des prévisions (6 prochains mois)
+
+```{r tableau-previsions}
+df_futur <- data.frame(
+  Date              = format(date_decimal(as.numeric(head(time(forecast_final$mean), 6))),
+                             "%b %Y"),
+  Prevision         = round(as.numeric(head(forecast_final$mean, 6)), 2),
+  Confiance_Inf_95  = round(as.numeric(head(forecast_final$lower[, 2], 6)), 2),
+  Confiance_Sup_95  = round(as.numeric(head(forecast_final$upper[, 2], 6)), 2)
+)
+
+knitr::kable(df_futur,
+             col.names = c("Date", "Prévision", "IC inf. 95%", "IC sup. 95%"),
+             align     = c("l", "r", "r", "r"),
+             caption   = "Prévisions ponctuelles avec intervalles de confiance à 95%")
+```
+
+---
+
+# Conclusion {#conclusion}
+
+```{r conclusion, results='asis', echo=FALSE}
+cat(paste0(
+  "L'analyse a porté sur la série de **Production Industrielle Alimentaire (C11)**",
+  " depuis **Janvier 1982**, avec un focus sur la période **2010–2024**.\n\n",
+  "| Étape | Résultat |\n",
+  "|---|---|\n",
+  "| Transformation | Logarithmique (variance hétéroscédastique) |\n",
+  "| Correction outliers | Méthode Additive Outliers (AO) |\n",
+  "| Différenciation | d = ", d_requis, ", D = ", D_requis, " |\n",
+  "| Modèle retenu | ", as.character(fit_model), " |\n",
+  "| MAPE (validation) | **", round(mape_score, 2), " %** |\n",
+  "| Horizon de prévision | 24 mois |\n"
+))
+```
