@@ -403,14 +403,14 @@ Les objectifs sont les suivants :
 - **Période** : **Janvier 1972 — Mars 2024**
 - **Nombre d’observations** : **627**
 - **Approche principale** : **SARIMA**
-- **Particularité du dataset** : **focus final sur la période récente (depuis 2010)**
+- **Particularité du dataset** : **focus final sur la période récente depuis 2010**
 
 ---
 
 ## 📊 1. Statistiques descriptives
 
 <p align="center">
-  <img src="assets2/01_statistiques_descriptives.png" width="850" alt="Statistiques descriptives production alimentaire">
+  <img src="assets2/statistique_desc_alimentaire.png" width="850" alt="Statistiques descriptives production alimentaire">
 </p>
 
 ### Valeurs principales
@@ -429,157 +429,125 @@ Les objectifs sont les suivants :
 
 ### Interprétation
 
-La série de production alimentaire présente :
-
-- une **croissance globale positive** ;
-- une **volatilité relativement faible** ;
-- une **tendance haussière stable** ;
-- une saisonnalité mensuelle assez régulière.
+La série de production alimentaire présente une **croissance globale positive**, une **volatilité relativement faible**, une **tendance haussière stable** et une saisonnalité mensuelle assez régulière.
 
 ---
 
 ## 📈 2. Diagnostic statistique
 
 <p align="center">
-  <img src="assets2/02_diagnostic_statistique.png" width="850" alt="Diagnostic statistique production alimentaire">
+  <img src="assets2/diagnostic_statistique.png" width="850" alt="Diagnostic statistique production alimentaire">
 </p>
 
 ### Interprétation
 
-La visualisation globale et le zoom montrent :
-
-- une tendance croissante de long terme ;
-- des oscillations répétitives ;
-- une saisonnalité visible ;
-- quelques perturbations ponctuelles.
-
-Cette étape permet de comprendre le comportement brut de la série avant transformation.
+La visualisation globale et le zoom montrent une tendance croissante de long terme, des oscillations répétitives, une saisonnalité visible et quelques perturbations ponctuelles. Cette étape permet de comprendre le comportement brut de la série avant transformation.
 
 ---
 
 ## 📌 3. Test de stabilité de la variance
 
 <p align="center">
-  <img src="assets2/03_test_stabilite_variance.png" width="850" alt="Stabilité de la variance production alimentaire">
+  <img src="assets2/test%20de%20stabilit%C3%A9%20.png" width="850" alt="Test de stabilité de la variance">
 </p>
 
 ### Interprétation
 
-La volatilité glissante varie au cours du temps. Même si elle reste globalement maîtrisée, certains pics justifient le passage à une transformation logarithmique.
+La volatilité glissante varie au cours du temps. Même si elle reste globalement maîtrisée, certains pics justifient le passage à une transformation logarithmique afin de stabiliser la variance.
 
 ---
 
 ## 🔄 4. Transformation logarithmique
 
 <p align="center">
-  <img src="assets2/04_transformation_logarithmique.png" width="850" alt="Transformation logarithmique production alimentaire">
+  <img src="assets2/s%C3%A9rie%20apres%20transformation%20logarithmique.png" width="850" alt="Série après transformation logarithmique">
 </p>
 
 ### Interprétation
 
-Le passage au log permet :
-
-- de stabiliser la variance ;
-- de réduire l’effet des fortes fluctuations ;
-- d’obtenir une série plus adaptée à l’analyse temporelle.
+Le passage au log permet de stabiliser la variance, de réduire l’effet des fortes fluctuations et d’obtenir une série plus adaptée à l’analyse temporelle.
 
 ---
 
 ## 🚨 5. Détection et correction des Additive Outliers
 
 <p align="center">
-  <img src="assets2/05_detection_correction_outliers_AO.png" width="850" alt="Additive outliers production alimentaire">
+  <img src="assets2/d%C3%A9tection%20et%20correction%20des%20additives%20outliers.png" width="850" alt="Détection et correction des additive outliers">
 </p>
 
 ### Interprétation
 
-La méthode **AO (Additive Outliers)** est utilisée pour repérer les chocs ponctuels isolés. Ces points extrêmes peuvent perturber les estimations du modèle.
-
-Le nettoyage produit une série plus propre, plus robuste pour la modélisation.
+La méthode **AO (Additive Outliers)** est utilisée pour repérer les chocs ponctuels isolés. Ces points extrêmes peuvent perturber les estimations du modèle. Le nettoyage produit une série plus propre et plus robuste pour la modélisation.
 
 ---
 
 ## 🧩 6. Décomposition STL
 
 <p align="center">
-  <img src="assets2/06_decomposition_STL.png" width="850" alt="Décomposition STL production alimentaire">
+  <img src="assets2/decompositionSTL.png" width="850" alt="Décomposition STL production alimentaire">
 </p>
 
 ### Interprétation
 
-La décomposition montre :
-
-- une **tendance croissante** sur le long terme ;
-- une **saisonnalité régulière** ;
-- des résidus relativement maîtrisés.
-
-Cette étape confirme la structure saisonnière du dataset.
+La décomposition STL montre une **tendance croissante** sur le long terme, une **saisonnalité régulière** et des résidus relativement maîtrisés. Cette étape confirme la structure saisonnière du dataset.
 
 ---
 
 ## ⚠️ 7. Détection de ruptures structurelles
 
 <p align="center">
-  <img src="assets2/07_detection_ruptures_structurelles.png" width="850" alt="Ruptures structurelles production alimentaire">
+  <img src="assets2/detection%20de%20repture%20structurelle.png" width="850" alt="Détection de rupture structurelle">
 </p>
 
 ### Interprétation
 
-Le graphique met en évidence plusieurs ruptures potentielles :
-
-- une rupture vers la fin des années 1990 ;
-- une autre autour de 2007 ;
-- un impact spécifique lié à **COVID** autour de 2020.
-
-Pour améliorer la pertinence des prévisions, le script choisit ensuite de se concentrer sur la partie récente de la série.
+Le graphique met en évidence plusieurs ruptures potentielles : une rupture vers la fin des années 1990, une autre autour de 2007 et un impact spécifique lié à **COVID** autour de 2020. Pour améliorer la pertinence des prévisions, le script choisit ensuite de se concentrer sur la partie récente de la série.
 
 ---
 
 ## 🧪 8. Stationnarité et identification
 
 <p align="center">
-  <img src="assets2/08_stationnarite_identification.png" width="850" alt="Stationnarité production alimentaire">
+  <img src="assets2/stationnarit%C3%A9%20et%20identification.png" width="850" alt="Stationnarité et identification">
 </p>
 
 ### Résultat du test ADF
 
-- **p-value = 0.5322**
+```text
+p-value = 0.5322
+```
 
 Comme cette valeur est supérieure à 0.05, la série est initialement **non stationnaire**.
 
 Le script conclut à :
 
-- **d = 1** (différenciation simple) ;
-- **D = 1** (différenciation saisonnière).
+- **d = 1** : différenciation simple ;
+- **D = 1** : différenciation saisonnière.
 
 ---
 
 ## 🔁 9. Série après différenciation
 
 <p align="center">
-  <img src="assets2/09_apres_differenciation.png" width="850" alt="Après différenciation production alimentaire">
+  <img src="assets2/apres%20def.png" width="850" alt="Série après différenciation">
 </p>
 
 ### Interprétation
 
-Après différenciation :
-
-- la série oscille autour de zéro ;
-- la tendance et la saisonnalité sont retirées ;
-- la série devient exploitable pour l’étape d’identification ACF/PACF.
+Après différenciation, la série oscille autour de zéro. La tendance et la saisonnalité sont retirées, ce qui rend la série exploitable pour l’étape d’identification ACF/PACF.
 
 ---
 
 ## 📐 10. Identification visuelle ACF / PACF
 
 <p align="center">
-  <img src="assets2/10_identification_acf_pacf.png" width="850" alt="ACF PACF production alimentaire">
+  <img src="assets2/identification%20acf%20pacf.png" width="850" alt="Identification ACF PACF">
 </p>
 
 ### Rôle
 
-- **ACF** : identifier les composantes MA (`q`, `Q`) ;
-- **PACF** : identifier les composantes AR (`p`, `P`).
+- **ACF** : identifier les composantes MA, donc `q` et `Q` ;
+- **PACF** : identifier les composantes AR, donc `p` et `P`.
 
 Cette lecture guide le choix du modèle SARIMA retenu ensuite par `auto.arima`.
 
@@ -588,7 +556,7 @@ Cette lecture guide le choix du modèle SARIMA retenu ensuite par `auto.arima`.
 ## ✂️ 11. Division Train / Test
 
 <p align="center">
-  <img src="assets2/11_division_train_test.png" width="850" alt="Division train test production alimentaire">
+  <img src="assets2/division%20train%20test.png" width="850" alt="Division train test">
 </p>
 
 ### Principe
@@ -600,14 +568,14 @@ Le script effectue une séparation sur la période récente :
 
 ### Pourquoi ce choix ?
 
-Parce que les comportements les plus récents sont les plus utiles pour prévoir le futur proche. Cela évite qu’un régime ancien ne dégrade la pertinence du modèle.
+Les comportements récents sont les plus utiles pour prévoir le futur proche. Cela évite qu’un régime ancien ne dégrade la pertinence du modèle.
 
 ---
 
 ## 🤖 12. Modélisation SARIMA
 
 <p align="center">
-  <img src="assets2/12_modelisation_SARIMA.png" width="850" alt="Modélisation SARIMA production alimentaire">
+  <img src="assets2/modelisation%20sarima%20.png" width="850" alt="Modélisation SARIMA">
 </p>
 
 ### Modèle retenu
@@ -624,19 +592,14 @@ ARIMA(1,0,1)(0,1,1)[12] with drift
 
 ### Interprétation
 
-Ce modèle capte correctement :
-
-- la composante autorégressive ;
-- la composante moyenne mobile ;
-- la saisonnalité annuelle (mensuelle sur 12) ;
-- une légère dérive (`drift`).
+Ce modèle capte correctement la composante autorégressive, la composante moyenne mobile, la saisonnalité annuelle mensuelle sur 12 mois et une légère dérive grâce au paramètre `drift`.
 
 ---
 
 ## ✅ 13. Validation sur le test set
 
 <p align="center">
-  <img src="assets2/13_validation_test_set.png" width="850" alt="Validation test set production alimentaire">
+  <img src="assets2/validation%20sur%20test%20set%20.png" width="850" alt="Validation sur le test set">
 </p>
 
 ### Résultat principal
@@ -654,22 +617,22 @@ Un **MAPE de 2.61%** indique une **très bonne performance**. Le modèle prédit
 ## 🌍 14. Validation globale
 
 <p align="center">
-  <img src="assets2/14_validation_globale.png" width="850" alt="Validation globale production alimentaire">
+  <img src="assets2/validation%20global.png" width="850" alt="Validation globale">
 </p>
 
 ### Interprétation
 
-Le graphique global confirme que la prévision suit bien la réalité sur la zone test. La superposition entre les courbes valide la qualité du modèle.
+Le graphique global compare l’historique d’apprentissage, la réalité du test set et la prévision du modèle. La prévision suit correctement la réalité cachée, ce qui confirme la bonne capacité prédictive du modèle.
 
 ---
 
 ## 🔮 15. Tableau des prévisions futures
 
 <p align="center">
-  <img src="assets2/15_forecast_table.png" width="850" alt="Forecast table production alimentaire">
+  <img src="assets2/forcast.png" width="850" alt="Tableau des prévisions futures">
 </p>
 
-### Premières prévisions (95%)
+### Premières prévisions avec intervalle de confiance à 95%
 
 | Date | Prévision | IC inf. 95% | IC sup. 95% |
 |---|---:|---:|---:|
@@ -685,9 +648,8 @@ Le graphique global confirme que la prévision suit bien la réalité sur la zon
 ## 🏁 16. Prévision finale
 
 <p align="center">
-  <img src="assets2/16_prevision_finale.png" width="850" alt="Prévision finale production alimentaire">
+  <img src="assets2/prevision%20final%20.png" width="850" alt="Prévision finale production alimentaire">
 </p>
-
 ### Interprétation
 
 La prévision finale montre :
